@@ -57,14 +57,15 @@ export class NaiveBayesEngine<T extends string, C extends string> {
         const classes = Object.keys(this.classesDistribution);
         // for each class, compute the probability using Bayes
         const entries = classes.map(className => {
-            // this does the product of all
+            // this does the product for every probability in the vector
             const accumulator = (orig: number, choice: string) => {
                 const matches = vector[choice as T];
                 const p = this.distribution[choice as T][className as C];
                 const factor = matches ? p : (1 - p);
                 return orig * factor;
             }
-            const probability = choices.reduce(accumulator, 1);
+            const classP = this.classesDistribution[className as C];
+            const probability = choices.reduce(accumulator, 1) * classP;
             return [className, probability];
         })
         return Object.fromEntries(entries);

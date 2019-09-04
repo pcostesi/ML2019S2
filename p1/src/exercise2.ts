@@ -37,6 +37,7 @@ const dataset = [
     { choices: mapper([1, 1, 0, 0, 0]), kind: Nationality.ENGLISH },
     { choices: mapper([0, 1, 0, 0, 1]), kind: Nationality.ENGLISH },
     { choices: mapper([0, 0, 0, 1, 0]), kind: Nationality.ENGLISH },
+
     { choices: mapper([1, 0, 0, 1, 1]), kind: Nationality.SCOTTISH },
     { choices: mapper([1, 1, 0, 0, 1]), kind: Nationality.SCOTTISH },
     { choices: mapper([1, 1, 1, 1, 0]), kind: Nationality.SCOTTISH },

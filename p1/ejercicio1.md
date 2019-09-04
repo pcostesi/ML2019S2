@@ -1,4 +1,4 @@
-Ejercicio 1)
+# Ejercicio 1
 
 
 P(gusta del programa 1 | joven) = 0.95
