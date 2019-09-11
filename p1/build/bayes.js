@@ -1,34 +1,63 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-function laplacify(dataset) {
-    const groups = {};
-    for (const row of dataset) {
-        const group = (groups[row.kind] || []);
-        groups[row.kind] = [...group, row.choices];
+const normalizeMap = (map) => {
+    const normalized = new Map();
+    // we know the sum of all the probabilities should be 1, so we normalize the number
+    const total = [...map.values()].reduce((a, b) => a + b, 0);
+    map.forEach((v, key) => normalized.set(key, v / total));
+    return normalized;
+};
+const laplaceNormalizeMap = (map, k) => {
+    const normalized = new Map();
+    const total = [...map.values()].reduce((a, b) => a + b, 0);
+    map.forEach((v, key) => normalized.set(key, (v + 1) / (total + k)));
+    return normalized;
+};
+class BayesResult {
+    constructor(_raw) {
+        this._raw = _raw;
+        this._normalized = normalizeMap(_raw);
+        const entries = [...this.normalized.entries()];
+        const sorted = entries.sort(([, v1], [, v2]) => v2 - v1);
+        const ranked = sorted.map(([k, v]) => `- ${k}: \t${(v * 100).toFixed(2)}`);
+        this._description = `Most Likely class is '${sorted[0][0]}' by ${(sorted[0][1] * 100).toFixed(2)}%.` +
+            `\nRanking is:\n${ranked.join('\n')}\n---\n\n`;
+    }
+    get raw() {
+        return this._raw;
+    }
+    get normalized() {
+        return this._normalized;
+    }
+    toString() {
+        return this._description;
     }
 }
-exports.laplacify = laplacify;
-function datasetLoader(dataset) {
-    const collection = {};
-    const classDistribution = {};
+function datasetLoader(dataset, useLaplace = false) {
+    // we assume the dataset has all the explained variants. I.E.: in the English vs Scottish,
+    // we're not missing either Englsh or Scottish.
+    const collection = new Map();
+    const classDistribution = new Map();
+    const normalizer = useLaplace ? laplaceNormalizeMap : normalizeMap;
     for (const row of dataset) {
-        classDistribution[row.kind] = (classDistribution[row.kind] || 0) + 1;
-        for (const choice of Object.keys(row.choices)) {
-            const choiceValue = row.choices[choice];
-            const choiceRow = collection[choice] || [];
-            const val = choiceRow[row.kind] || 0;
-            choiceRow[row.kind] = val + (choiceValue ? 1 : 0);
-            collection[choice] = choiceRow;
+        const explained = row.kind;
+        const explainer = row.choices;
+        // count each time we see a class
+        const p = (classDistribution.get(explained) || 0);
+        classDistribution.set(explained, p + 1);
+        // for each variable (choice), group it by class
+        for (const [choice, choiceValue] of explainer) {
+            const variableGroup = collection.get(choice) || new Map();
+            const value = variableGroup.get(explained) || 0;
+            variableGroup.set(explained, value + (choiceValue ? 1 : 0));
+            collection.set(choice, variableGroup);
         }
     }
-    for (const T of Object.keys(collection)) {
-        const classes = collection[T];
-        const sum = Object.entries(classes).reduce((t, [k, v]) => t + v, 0);
-        const mapped = Object.entries(classes).map(([k, v]) => ([k, v / sum]));
-        collection[T] = Object.fromEntries(mapped);
+    // normalize maps
+    for (const [T, classes] of collection.entries()) {
+        collection.set(T, normalizer(classes, classDistribution.size));
     }
-    const pClassDistribution = Object.fromEntries(Object.entries(classDistribution)
-        .map(([key, val]) => [key, val / dataset.length]));
+    const pClassDistribution = normalizeMap(classDistribution);
     return {
         distribution: collection,
         classDistribution: pClassDistribution
@@ -41,22 +70,28 @@ class NaiveBayesEngine {
         this.classesDistribution = classesDistribution;
     }
     probabilities(vector) {
-        const choices = Object.keys(this.distribution);
-        const classes = Object.keys(this.classesDistribution);
+        const choices = this.distribution;
+        const classes = this.classesDistribution;
+        const rawMap = new Map();
         // for each class, compute the probability using Bayes
-        const entries = classes.map(className => {
+        classes.forEach((classP, className) => {
             // this does the product for every probability in the vector
-            const accumulator = (orig, choice) => {
-                const matches = vector[choice];
-                const p = this.distribution[choice][className];
+            const accumulator = (orig, entry) => {
+                const [variable, options] = entry;
+                const matches = vector.get(variable);
+                const p = options.get(className) || 0;
+                // if it does match the entry value, we use p. Otherwise, use not p.
                 const factor = matches ? p : (1 - p);
                 return orig * factor;
             };
-            const classP = this.classesDistribution[className];
-            const probability = choices.reduce(accumulator, 1) * classP;
-            return [className, probability];
+            const probability = [...choices.entries()].reduce(accumulator, 1) * classP;
+            rawMap.set(className, probability);
         });
-        return Object.fromEntries(entries);
+        return new BayesResult(rawMap);
     }
 }
 exports.NaiveBayesEngine = NaiveBayesEngine;
+function group(obj) {
+    return new Map(Object.entries(obj));
+}
+exports.group = group;

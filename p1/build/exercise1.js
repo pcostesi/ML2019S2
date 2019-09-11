@@ -13,39 +13,39 @@ var Kinds;
     Kinds["YOUNG"] = "Joven";
     Kinds["ADULT"] = "Viejo";
 })(Kinds || (Kinds = {}));
-const distribution = {
-    [Programs.PROG1]: {
+const distribution = bayes_1.group({
+    [Programs.PROG1]: bayes_1.group({
         [Kinds.YOUNG]: 0.95,
         [Kinds.ADULT]: 0.03,
-    },
-    [Programs.PROG2]: {
+    }),
+    [Programs.PROG2]: bayes_1.group({
         [Kinds.YOUNG]: 0.05,
         [Kinds.ADULT]: 0.82,
-    },
-    [Programs.PROG3]: {
+    }),
+    [Programs.PROG3]: bayes_1.group({
         [Kinds.YOUNG]: 0.02,
         [Kinds.ADULT]: 0.34,
-    },
-    [Programs.PROG4]: {
+    }),
+    [Programs.PROG4]: bayes_1.group({
         [Kinds.YOUNG]: 0.2,
         [Kinds.ADULT]: 0.92,
-    },
-};
-const classDistribution = {
+    }),
+});
+const classDistribution = bayes_1.group({
     [Kinds.YOUNG]: 0.1,
     [Kinds.ADULT]: 0.9
-};
-const knowledge = {
+});
+const knowledge = bayes_1.group({
     [Programs.PROG1]: true,
     [Programs.PROG2]: false,
     [Programs.PROG3]: true,
     [Programs.PROG4]: false,
-};
+});
 function exercise1() {
     const engine = new bayes_1.NaiveBayesEngine(distribution, classDistribution);
     const computed = engine.probabilities(knowledge);
     console.log(`Ejercicio 1: probabilidades entre jóvenes y adultos`);
-    console.log(computed);
+    console.log(computed.toString());
     return computed;
 }
 exports.default = exercise1;

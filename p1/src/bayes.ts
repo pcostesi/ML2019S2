@@ -1,73 +1,118 @@
-type Probabilities<T extends string, C extends string> = { [key in T]: { [key in C]: number } };
-type KnownProbabilities<T extends string> = { [key in T]: boolean };
-type ClassProbabilities<C extends string> = { [key in C]: number };
-type Dataset<T extends string, C extends string> = { choices: KnownProbabilities<T>, kind: C }[];
+type KnownProbabilities<T> = Map<T, boolean>;
+type ClassProbabilities<C> = Map<C, number>;
+type Probabilities<T, C> = Map<T, ClassProbabilities<C>>;
+type Dataset<T, C> = { choices: KnownProbabilities<T>, kind: C }[];
 
+const normalizeMap = <C>(map: Map<C, number>) => {
+    const normalized = new Map<C, number>();
+    // we know the sum of all the probabilities should be 1, so we normalize the number
+    const total = [...map.values()].reduce((a, b) => a + b, 0)
 
-export function laplacify<T extends string, C extends string>(dataset: Dataset<T, C>) {
-    const groups: { [key in C]?: KnownProbabilities<T>[] } = {};
-    for (const row of dataset) {
-        const group = (groups[row.kind] || []) as KnownProbabilities<T>[];
-        groups[row.kind] = [...group, row.choices];
-    }
-
-
+    map.forEach((v, key) => normalized.set(key, v / total));
+    return normalized;
 }
 
-export function datasetLoader<T extends string, C extends string>(dataset: Dataset<T, C>) {
-    const collection: any = {};
-    const classDistribution: any = {};
+const laplaceNormalizeMap = <C>(map: Map<C, number>, k: number) => {
+    const normalized = new Map<C, number>();
+    const total = [...map.values()].reduce((a, b) => a + b, 0)
+
+    map.forEach((v, key) => normalized.set(key, (v + 1) / (total + k)));
+    return normalized;
+}
+
+class BayesResult<C> {
+    private _normalized: ClassProbabilities<C>;
+    private _description: string;
+
+    get raw() {
+        return this._raw;
+    }
+
+    get normalized() {
+        return this._normalized;
+    }
+
+    constructor(private _raw: ClassProbabilities<C>) {
+        this._normalized = normalizeMap(_raw);
+        const entries = [...this.normalized.entries()]
+        const sorted = entries.sort(([, v1], [, v2]) => v2 - v1);
+        const ranked = sorted.map(([k, v]) => `- ${k}: \t${(v * 100).toFixed(2)}%`)
+        this._description = `Most Likely class is '${sorted[0][0]}' by ${(sorted[0][1] * 100).toFixed(2)}%.` +
+            `\nRanking is:\n${ranked.join('\n')}\n---\n\n`
+    }
+
+    public toString() {
+        return this._description;
+    }
+}
+
+export function datasetLoader<T, C>(dataset: Dataset<T, C>, useLaplace = false) {
+    // we assume the dataset has all the explained variants. I.E.: in the English vs Scottish,
+    // we're not missing either Englsh or Scottish.
+    const collection: Probabilities<T, C> = new Map();
+    const classDistribution: ClassProbabilities<C> = new Map();
+    const normalizer = useLaplace ? laplaceNormalizeMap : normalizeMap;
 
     for (const row of dataset) {
-        classDistribution[row.kind] = (classDistribution[row.kind] || 0) as number + 1;
+        const explained = row.kind;
+        const explainer = row.choices;
 
-        for (const choice of Object.keys(row.choices)) {
-            const choiceValue = row.choices[choice as T];
-            const choiceRow = collection[choice] || [];
-            const val = choiceRow[row.kind] || 0;
-            choiceRow[row.kind] = val + (choiceValue ? 1 : 0);
-            collection[choice] = choiceRow;
+        // count each time we see a class
+        const p = (classDistribution.get(explained) || 0);
+        classDistribution.set(explained, p + 1);
+
+        // for each variable (choice), group it by class
+        for (const [choice, choiceValue] of explainer) {
+            const variableGroup: ClassProbabilities<C> = collection.get(choice) || new Map();
+            const value = variableGroup.get(explained) || 0;
+            variableGroup.set(explained, value + (choiceValue ? 1 : 0))
+            collection.set(choice, variableGroup);
         }
     }
-
-    for (const T of Object.keys(collection)) {
-        const classes = collection[T];
-        const sum = Object.entries(classes).reduce((t, [k, v]) => t + (v as number), 0);
-        const mapped = Object.entries(classes).map(([k, v]) => ([k, (v as number) / sum]));
-        collection[T] = Object.fromEntries(mapped);
+    // normalize maps
+    for (const [T, classes] of collection.entries()) {
+        collection.set(T, normalizer(classes, classDistribution.size));
     }
 
-    const pClassDistribution = Object.fromEntries(Object.entries<number>(classDistribution)
-        .map(([key, val]) => [key, val / dataset.length]))
+    const pClassDistribution = normalizeMap(classDistribution)
 
     return {
-        distribution: collection as Probabilities<T, C>,
-        classDistribution: pClassDistribution as unknown as ClassProbabilities<C>
+        distribution: collection,
+        classDistribution: pClassDistribution
     };
 }
 
-export class NaiveBayesEngine<T extends string, C extends string> {
+export class NaiveBayesEngine<T, C> {
     constructor(
         private distribution: Probabilities<T, C>,
         private classesDistribution: ClassProbabilities<C>,
     ) { }
 
     probabilities(vector: KnownProbabilities<T>) {
-        const choices = Object.keys(this.distribution);
-        const classes = Object.keys(this.classesDistribution);
+        const choices = this.distribution;
+        const classes = this.classesDistribution;
+        const rawMap: ClassProbabilities<C> = new Map();
+
         // for each class, compute the probability using Bayes
-        const entries = classes.map(className => {
+        classes.forEach((classP, className) => {
             // this does the product for every probability in the vector
-            const accumulator = (orig: number, choice: string) => {
-                const matches = vector[choice as T];
-                const p = this.distribution[choice as T][className as C];
+            const accumulator = (orig: number, entry: [T, ClassProbabilities<C>]) => {
+                const [variable, options] = entry;
+                const matches = vector.get(variable);
+                const p = options.get(className) || 0;
+                // if it does match the entry value, we use p. Otherwise, use not p.
                 const factor = matches ? p : (1 - p);
                 return orig * factor;
             }
-            const classP = this.classesDistribution[className as C];
-            const probability = choices.reduce(accumulator, 1) * classP;
-            return [className, probability];
+            const probability = [...choices.entries()].reduce(accumulator, 1) * classP;
+            rawMap.set(className, probability)
         })
-        return Object.fromEntries(entries);
+
+        return new BayesResult(rawMap);
     }
 }
+
+export function group<T extends string, C>(obj: { [key in T]: C }) {
+    return new Map(Object.entries(obj) as [[T, C]])
+}
+
