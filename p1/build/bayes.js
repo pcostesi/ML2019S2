@@ -19,15 +19,19 @@ class BayesResult {
         this._normalized = normalizeMap(_raw);
         const entries = [...this.normalized.entries()];
         const sorted = entries.sort(([, v1], [, v2]) => v2 - v1);
-        const ranked = sorted.map(([k, v]) => `- ${k}: \t${(v * 100).toFixed(2)}`);
+        const ranked = sorted.map(([k, v]) => `- ${(v * 100).toFixed(2)}% \t${k}`);
         this._description = `Most Likely class is '${sorted[0][0]}' by ${(sorted[0][1] * 100).toFixed(2)}%.` +
-            `\nRanking is:\n${ranked.join('\n')}\n---\n\n`;
+            `\nRanking is:\n${ranked.join("\n")}\n---\n\n`;
+        this._answer = sorted[0][0];
     }
     get raw() {
         return this._raw;
     }
     get normalized() {
         return this._normalized;
+    }
+    get answer() {
+        return this._answer;
     }
     toString() {
         return this._description;
@@ -59,11 +63,12 @@ function datasetLoader(dataset, useLaplace = false) {
     }
     const pClassDistribution = normalizeMap(classDistribution);
     return {
+        classDistribution: pClassDistribution,
         distribution: collection,
-        classDistribution: pClassDistribution
     };
 }
 exports.datasetLoader = datasetLoader;
+// tslint:disable-next-line: max-classes-per-file
 class NaiveBayesEngine {
     constructor(distribution, classesDistribution) {
         this.distribution = distribution;

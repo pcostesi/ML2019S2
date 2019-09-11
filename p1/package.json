@@ -5,13 +5,18 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@types/node": "^12.7.5",
     "typescript": "^3.6.2"
   },
   "scripts": {
     "build": "tsc",
-    "start": "node build"
+    "start": "node build",
+    "dev": "yarn build && yarn start"
   },
   "dependencies": {
+    "csv": "^5.1.2",
+    "rxjs": "^6.5.3",
+    "rxjs-stream": "^3.0.2",
     "tslint": "^5.20.0"
   }
 }
