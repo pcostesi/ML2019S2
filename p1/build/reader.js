@@ -10,9 +10,10 @@ function read(path) {
     const records = sync_1.default(input, {
         columns: true,
         delimiter: "\t",
-        skip_empty_lines: true,
         quote: false,
+        skip_empty_lines: true,
     });
     return records;
 }
 exports.default = read;
+//# sourceMappingURL=reader.js.map

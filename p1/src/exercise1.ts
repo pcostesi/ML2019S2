@@ -1,15 +1,15 @@
-import { group, NaiveBayesEngine } from './bayes';
+import { group, NaiveBayesEngine } from "./bayes";
 
 enum Programs {
-    PROG1 = 'Programa 1',
-    PROG2 = 'Programa 2',
-    PROG3 = 'Programa 3',
-    PROG4 = 'Programa 4',
+    PROG1 = "Programa 1",
+    PROG2 = "Programa 2",
+    PROG3 = "Programa 3",
+    PROG4 = "Programa 4",
 }
 
 enum Kinds {
-    YOUNG = 'Joven',
-    ADULT = 'Viejo',
+    YOUNG = "Joven",
+    ADULT = "Viejo",
 }
 
 const distribution = group({
@@ -29,12 +29,12 @@ const distribution = group({
         [Kinds.YOUNG]: 0.2,
         [Kinds.ADULT]: 0.92,
     }),
-})
+});
 
-const classDistribution = group({
+const classesDistribution = group({
     [Kinds.YOUNG]: 0.1,
-    [Kinds.ADULT]: 0.9
-})
+    [Kinds.ADULT]: 0.9,
+});
 
 const knowledge = group({
     [Programs.PROG1]: true,
@@ -44,9 +44,7 @@ const knowledge = group({
 });
 
 export default function exercise1() {
-    const engine = new NaiveBayesEngine<Programs, Kinds>(distribution, classDistribution)
+    const engine = new NaiveBayesEngine<Programs, Kinds>({ distribution, classesDistribution });
     const computed = engine.probabilities(knowledge);
-    console.log(`Ejercicio 1: probabilidades entre jóvenes y adultos`)
-    console.log(computed.toString());
     return computed;
 }

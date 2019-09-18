@@ -6,8 +6,8 @@ export default function read(path: string) {
     const records = parse(input, {
         columns: true,
         delimiter: "\t",
-        skip_empty_lines: true,
         quote: false,
+        skip_empty_lines: true,
     });
     return records;
 }

@@ -5,15 +5,22 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@types/jest": "^24.0.18",
     "@types/node": "^12.7.5",
+    "jest": "^24.9.0",
+    "ts-jest": "^24.1.0",
     "typescript": "^3.6.2"
   },
   "scripts": {
     "build": "tsc",
     "start": "node build",
-    "dev": "yarn build && yarn start"
+    "dev": "yarn build && yarn start",
+    "test": "jest",
+    "lint": "tslint --project .",
+    "format": "tslint --project . --fix"
   },
   "dependencies": {
+    "consola": "^2.10.1",
     "csv": "^5.1.2",
     "rxjs": "^6.5.3",
     "rxjs-stream": "^3.0.2",

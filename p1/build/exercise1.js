@@ -31,9 +31,9 @@ const distribution = bayes_1.group({
         [Kinds.ADULT]: 0.92,
     }),
 });
-const classDistribution = bayes_1.group({
+const classesDistribution = bayes_1.group({
     [Kinds.YOUNG]: 0.1,
-    [Kinds.ADULT]: 0.9
+    [Kinds.ADULT]: 0.9,
 });
 const knowledge = bayes_1.group({
     [Programs.PROG1]: true,
@@ -42,10 +42,9 @@ const knowledge = bayes_1.group({
     [Programs.PROG4]: false,
 });
 function exercise1() {
-    const engine = new bayes_1.NaiveBayesEngine(distribution, classDistribution);
+    const engine = new bayes_1.NaiveBayesEngine({ distribution, classesDistribution });
     const computed = engine.probabilities(knowledge);
-    console.log(`Ejercicio 1: probabilidades entre jóvenes y adultos`);
-    console.log(computed.toString());
     return computed;
 }
 exports.default = exercise1;
+//# sourceMappingURL=exercise1.js.map

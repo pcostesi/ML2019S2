@@ -46,11 +46,10 @@ const dataset = [
 ];
 // as the scons category is empty for the Scottish, we need to use Laplace.
 function exercise2() {
-    const { distribution, classDistribution } = bayes_1.datasetLoader(dataset, true);
-    const engine = new bayes_1.NaiveBayesEngine(distribution, classDistribution);
+    const data = bayes_1.datasetLoader(dataset, true);
+    const engine = new bayes_1.NaiveBayesEngine(data);
     const computed = engine.probabilities(knowledge);
-    console.log(`Ejercicio 2: Clasificación entre Ingleses y Escoceses`);
-    console.log(computed.toString());
     return computed;
 }
 exports.default = exercise2;
+//# sourceMappingURL=exercise2.js.map

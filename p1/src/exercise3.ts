@@ -1,16 +1,20 @@
+import consola from "consola";
 import { from, of, zip } from "rxjs";
 import { filter, flatMap, groupBy, map, mergeMap, reduce, toArray } from "rxjs/operators";
-import { datasetLoader, NaiveBayesEngine } from "./bayes";
-import { splitters } from "./benchmark";
+import { DatasetRow } from "./bayes";
+import { Experiment } from "./benchmark";
 import read from "./reader";
 // taken from https://raw.githubusercontent.com/stopwords-iso/stopwords-es/master/stopwords-es.json
 import stopwords from "./stopwords-es.json";
 
-const TOP_WORDS = 30;
+const TOP_WORDS = 100;
 
 function toDataRow(sentence: string) {
-    const phrase = sentence.toLowerCase().replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, "");
-    const words = phrase.split(" ").filter((w) => w && !stopwords.includes(w));
+    const phrase = sentence.toLowerCase().replace(/[\d\[\]&\/\\#,+()$~%.'":*?<>{}]/g, "");
+    const words = phrase.split(/\b/)
+        .filter(Boolean)
+        .filter((w) => !stopwords.includes(w))
+        .filter((w) => w.length > 3);
     return words;
 }
 
@@ -28,27 +32,32 @@ export default async function exercise3(phrase: string) {
 
     // let's remove the most common since it's noise in this dataset
     const mostCommon = categoriesSorted[0][0];
+    consola.info(`Most common word is: ${mostCommon}. Removing...`);
     const explained = categoriesSorted.slice(1, categoriesSorted.length).map((v) => v[0]);
+    consola.info(`Categories are: \n - ${explained.join("\n - ")}.`);
 
-    console.log(`Most common: '${categoriesSorted[0][0]}' with ${categoriesSorted[0][1]} items.`);
+    // console.log(`Most common: '${categoriesSorted[0][0]}' with ${categoriesSorted[0][1]} items.`);
 
+    consola.info(`Cleaning dataset.`);
+
+    // filter the data samples so we avoid the most common class
     const clean = await from(records).pipe(
         filter((record: any) => record.categoria !== mostCommon),
         toArray(),
     ).toPromise();
 
-    const { training, testing } = splitters.random(0.1, clean);
-
     // split sentences into words
-    const segmented = await from(training).pipe(
+    const segmented = await from(clean).pipe(
         flatMap((record) => {
             const words = toDataRow(record.titular);
-            return words.map((word) => ({ word, kind: record.categoria }));
+            return from(words.map((word) => ({ word, kind: record.categoria })));
         }),
         toArray(),
     ).toPromise();
 
     // grab the most common words
+    consola.info(`Selecting the top ${TOP_WORDS} words.`);
+
     const mapped = await from(segmented).pipe(
         // split into classes
         groupBy((record) => record.kind),
@@ -66,42 +75,24 @@ export default async function exercise3(phrase: string) {
     ).toPromise() as Map<string, Map<string, number>>;
 
     // the most common words are going to be our explainer variables
-    const explainersKeys = [...mapped.values()].flatMap((counter) => [...counter.keys()]).sort();
+    const explainersKeys = [...new Set([...mapped.values()].flatMap((counter) => [...counter.keys()]))].sort();
+    consola.info(`Will use <<${explainersKeys.join(", ")}>>.`);
 
-    function toExplainerEntry(sentence: string) {
-        const result = new Map();
-        const words = toDataRow(sentence);
-        explainersKeys.forEach((key) => {
-            result.set(key, words.includes(key));
-        });
-        return result;
+    class WordPredictionExperiment extends Experiment<string, string, any> {
+        public rowLoader(t: any): DatasetRow<string, string> {
+            const result = new Map();
+            const words = toDataRow(t.titular);
+            explainersKeys.forEach((key) => {
+                result.set(key, words.includes(key));
+            });
+            return {
+                choices: result,
+                kind: t.categoria,
+            };
+        }
     }
 
-    const trainingSet = segmented.map((data) => ({
-        choices: toExplainerEntry(data.word),
-        kind: data.kind,
-    }));
-
-    const knowledge = toExplainerEntry(phrase);
-
-    const bayesData = datasetLoader(trainingSet, true);
-    const engine = new NaiveBayesEngine(bayesData.distribution, bayesData.classDistribution);
-
-    const runs = testing.map((data) => {
-        const sentence = data.titular;
-        const kind = data.categoria;
-        const input = toExplainerEntry(sentence);
-        const guessed = engine.probabilities(input).answer;
-        return {
-            correct: kind,
-            guessed,
-            matches: kind === guessed,
-        };
-    });
-
-    console.log(runs);
-
-    const computed = engine.probabilities(knowledge);
-
-    console.log(computed.toString());
+    const experiment = new WordPredictionExperiment(clean, explained);
+    const exResult = experiment.crossValidation(10);
+    return exResult;
 }
