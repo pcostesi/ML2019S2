@@ -8,32 +8,32 @@ enum Programs {
 }
 
 enum Kinds {
-    YOUNG = "Joven",
-    ADULT = "Viejo",
+    UNDERGRAD = "Estudiante",
+    GRADUATE = "Graduado",
 }
 
 const distribution = group({
     [Programs.PROG1]: group({
-        [Kinds.YOUNG]: 0.95,
-        [Kinds.ADULT]: 0.03,
+        [Kinds.UNDERGRAD]: 0.95,
+        [Kinds.GRADUATE]: 0.03,
     }),
     [Programs.PROG2]: group({
-        [Kinds.YOUNG]: 0.05,
-        [Kinds.ADULT]: 0.82,
+        [Kinds.UNDERGRAD]: 0.05,
+        [Kinds.GRADUATE]: 0.82,
     }),
     [Programs.PROG3]: group({
-        [Kinds.YOUNG]: 0.02,
-        [Kinds.ADULT]: 0.34,
+        [Kinds.UNDERGRAD]: 0.02,
+        [Kinds.GRADUATE]: 0.34,
     }),
     [Programs.PROG4]: group({
-        [Kinds.YOUNG]: 0.2,
-        [Kinds.ADULT]: 0.92,
+        [Kinds.UNDERGRAD]: 0.2,
+        [Kinds.GRADUATE]: 0.92,
     }),
 });
 
 const classesDistribution = group({
-    [Kinds.YOUNG]: 0.1,
-    [Kinds.ADULT]: 0.9,
+    [Kinds.UNDERGRAD]: 0.1,
+    [Kinds.GRADUATE]: 0.9,
 });
 
 const knowledge = group({

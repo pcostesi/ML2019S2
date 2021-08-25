@@ -5,7 +5,7 @@ import exercise3 from "./exercise3";
 
 async function main() {
     const ex1 = await exercise1();
-    consola.log(`Ejercicio 1: probabilidades entre jóvenes y adultos`);
+    consola.log(`Ejercicio 1: probabilidades entre estudiantes y graduados`);
     consola.log(ex1.toString());
 
     const ex2 = await exercise2();
