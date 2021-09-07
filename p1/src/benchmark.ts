@@ -1,5 +1,6 @@
 import consola from "consola";
-import { BayesData, datasetLoader, DatasetRow, NaiveBayesEngine } from "./bayes";
+import { NumericLiteral } from "typescript";
+import { BayesData, BayesResult, datasetLoader, DatasetRow, NaiveBayesEngine } from "./bayes";
 
 // tslint:disable-next-line: max-classes-per-file
 class Stats {
@@ -11,20 +12,30 @@ class Stats {
     ) { }
 }
 
+const SPACING = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
+type RocData<C> = { guessed: BayesResult<C>, actual: C }[]
+export class RocRow {
+    cliff: number;
+    fpr: number;
+    tpr: number;
+}
+
 // tslint:disable-next-line: max-classes-per-file
 export class ConfusionMatrix<C> {
 
-    private _table = new Map<C, Map<C, number>>();
+    private table = new Map<C, Map<C, number>>();
     private rowTotals = new Map<C, number>();
     private colTotals = new Map<C, number>();
     private allTotals = 0;
 
     constructor(private classes: C[]) {
+        // actual as in the posta
         for (const actual of classes) {
             this.rowTotals.set(actual, 0);
             this.colTotals.set(actual, 0);
             const actualRow = new Map<C, number>();
-            this._table.set(actual, actualRow);
+            this.table.set(actual, actualRow);
             for (const guessed of classes) {
                 actualRow.set(guessed, 0);
             }
@@ -35,17 +46,6 @@ export class ConfusionMatrix<C> {
         return this.allTotals;
     }
 
-    get table() {
-        const theTable: any = {}
-        for (const [row, rowData] of Object.entries(this._table)) {
-            theTable[row] = {}
-            for (const [col, data] of Object.entries(rowData)) {
-                theTable[row][col] = data
-            }
-        }
-        console.table(theTable)
-        return theTable
-    }
 
     public actualTotal(category: C) {
         return this.rowTotals.get(category) || 0;
@@ -56,7 +56,7 @@ export class ConfusionMatrix<C> {
     }
 
     public get(actual: C, guessed: C) {
-        const actualRow = this._table.get(actual);
+        const actualRow = this.table.get(actual);
         if (!actualRow) {
             throw new Error(`class "${actual}" does not exist`);
         }
@@ -64,27 +64,26 @@ export class ConfusionMatrix<C> {
 
     }
 
-    public increase(actual: C, guessed: C) {
-        const actualRow = this._table.get(actual);
+    public increase(actual: C, guessed: C, amount = 1) {
+        const actualRow = this.table.get(actual);
         if (!actualRow) {
             throw new Error(`class "${actual}" does not exist`);
         }
-        const finalVal = this.get(actual, guessed) + 1;
+        this.allTotals += amount;
+        const finalVal = this.get(actual, guessed) + amount;
         actualRow.set(guessed, finalVal);
-        this.rowTotals.set(actual, (this.rowTotals.get(actual) || 0) + 1);
-        this.colTotals.set(actual, (this.colTotals.get(actual) || 0) + 1);
-        actualRow.set(guessed, finalVal);
+        this.rowTotals.set(actual, (this.rowTotals.get(actual) || 0) + amount);
+        this.colTotals.set(guessed, (this.colTotals.get(guessed) || 0) + amount);
         return finalVal;
     }
 
     public add(matrix: ConfusionMatrix<C>) {
         const newMatrix = new ConfusionMatrix(this.classes);
         for (const actual of this.classes) {
-            const actualRow = newMatrix._table.get(actual);
-            if (!actualRow) { continue; }
             for (const guessed of this.classes) {
-                const v = this.get(actual, guessed) + matrix.get(actual, guessed);
-                actualRow.set(guessed, v);
+                const mine = this.get(actual, guessed)
+                const theirs = matrix.get(actual, guessed)
+                newMatrix.increase(actual, guessed, mine + theirs)
             }
         }
         return newMatrix;
@@ -158,6 +157,7 @@ export abstract class Experiment<T, C, D> {
         let correct = 0;
         let incorrect = 0;
         let n = 0;
+        const roc = new Map();
         for (const { testing, training } of datasets) {
             consola.info(`Batch ${++n}`);
 
@@ -165,10 +165,44 @@ export abstract class Experiment<T, C, D> {
             matrix = matrix.add(evaluation.matrix);
             correct += evaluation.correct;
             incorrect += evaluation.incorrect;
+            const rocResult = this.computeROC(evaluation.rocData)
+            rocResult.forEach((values, key) => {
+                const newValues = values.map(({ cliff, fpr, tpr }, idx) => {
+                    const rocData = roc.get(key) || [];
+                    const theRoc = rocData[idx] || { cliff, fpr: 0, tpr: 0 }
+                    return {
+                        cliff,
+                        fpr: fpr / split + theRoc.fpr,
+                        tpr: tpr / split + theRoc.tpr,
+                    }
+                })
+                roc.set(key, newValues)
+            })
         }
         const stats = this.computeStats(matrix);
 
-        return { matrix, stats, correct, incorrect };
+        return { matrix, stats, correct, incorrect, roc };
+    }
+
+    public naive(split = 0.8) {
+        consola.info(`Running naive`);
+        const dataset = splitters.naive(split, this.dataset);
+        let matrix = new ConfusionMatrix(this.classes);
+        let correct = 0;
+        let incorrect = 0;
+        const { testing, training } = dataset
+
+        const evaluation = this.benchmark(training, testing);
+        // matrix = matrix.add(evaluation.matrix);
+        matrix = (evaluation.matrix);
+        correct += evaluation.correct;
+        incorrect += evaluation.incorrect;
+
+        const stats = this.computeStats(matrix);
+        const roc = this.computeROC(evaluation.rocData)
+
+
+        return { matrix, stats, correct, incorrect, roc };
     }
 
     public datasetLoader(training: any[]): BayesData<T, C> {
@@ -187,9 +221,11 @@ export abstract class Experiment<T, C, D> {
             const truePositive = matrix.get(category, category);
             const guessed = matrix.guessedTotal(category);
             const actual = matrix.actualTotal(category);
-            const trueNegative = matrix.all + truePositive - actual - guessed;
+
             const falsePositive = guessed - truePositive;
             const falseNegative = actual - truePositive;
+            const trueNegative = matrix.all - truePositive - falsePositive - falseNegative;
+
             const stat = { truePositive, trueNegative, falsePositive, falseNegative };
             const computed = new Map<string, number>();
             computed.set("true positive", truePositive);
@@ -207,21 +243,59 @@ export abstract class Experiment<T, C, D> {
         return stats;
     }
 
-    private benchmark(training: D[], testing: D[]) {
+    private computeROC(rocData: RocData<C>, spacing: number[] = SPACING) {
+        const rocResult = new Map<C, RocRow[]>()
+
+        const categories = new Set(Array.from(rocData.values()).map(({ actual }) => actual))
+        for (const category of categories) {
+            for (const spacingIdx in spacing) {
+                const cliff = spacing[spacingIdx]
+                let [tp, fp, tn, fn] = [0, 0, 0, 0]
+                for (const { actual, guessed } of rocData) {
+                    const p = guessed.probabilities.get(category)
+                    const overCliff = p >= cliff
+                    if (category == actual) {
+                        if (overCliff) {
+                            tp += 1
+                        } else {
+                            fn += 1
+                        }
+                    } else {
+                        if (overCliff) {
+                            fp += 1
+                        } else {
+                            tn += 1
+                        }
+                    }
+                }
+                const tpr = tp / (tp + fn)
+                const fpr = fp / (fp + tn)
+                const results = rocResult.get(category) || []
+                const result = { cliff, tpr, fpr }
+                results[spacingIdx] = result
+                rocResult.set(category, results)
+            }
+        }
+        return rocResult;
+    }
+
+    public benchmark(training: D[], testing: D[]) {
         const matrix = new ConfusionMatrix(this.classes);
         const bayesData = this.datasetLoader(training);
         const engine = new NaiveBayesEngine(bayesData);
         const testingData = testing.map((t) => this.rowLoader(t));
         let correct = 0;
         let incorrect = 0;
+        const rocData: RocData<C> = []
         for (const { choices, kind } of testingData) {
             const guessed = engine.probabilities(choices);
+            matrix.increase(kind, guessed.answer);
             if (kind === guessed.answer) {
-                matrix.increase(kind, guessed.answer);
                 correct += 1;
             } else {
                 incorrect += 1;
             }
+            rocData.push({ guessed, actual: kind })
         }
         consola.info(`Ran a benchmark of ${correct} over ${correct + incorrect}`);
 
@@ -230,6 +304,7 @@ export abstract class Experiment<T, C, D> {
             engine,
             incorrect,
             matrix,
+            rocData
         };
     }
 }

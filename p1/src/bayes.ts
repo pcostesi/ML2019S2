@@ -1,13 +1,20 @@
-export type KnownProbabilities<T> = Map<T, boolean>;
-export type ClassProbabilities<C> = Map<C, number>;
-export type Probabilities<T, C> = Map<T, ClassProbabilities<C>>;
+// this is the vector I want to test
+export type FactVector<T> = Map<T, boolean>;
+
+export type Probabilities<X> = Map<X, number>;
+
+// given T, probability of X -> P(X|T)
+export type CondProbabilities<X, Y> = Map<Y, Probabilities<X>>;
 // tslint:disable-next-line: interface-name
-export interface DatasetRow<T, C> { choices: KnownProbabilities<T>; kind: C; }
+
+
+// T is the explainer set, C is the explained set
+export interface DatasetRow<T, C> { choices: FactVector<T>; kind: C; }
 export type Dataset<T, C> = Array<DatasetRow<T, C>>;
 // tslint:disable-next-line: interface-name
 export interface BayesData<T, C> {
-    distribution: Probabilities<T, C>;
-    classesDistribution: ClassProbabilities<C>;
+    likelyhood: CondProbabilities<T, C>;
+    prior: Probabilities<C>;
 }
 
 export const normalizeMap = <C>(map: Map<C, number>) => {
@@ -28,33 +35,20 @@ export const laplaceNormalizeMap = <C>(map: Map<C, number>, k: number) => {
 };
 
 
-/**
- *
- *
- * @export
- * @class BayesResult
- * @template C
- */
 export class BayesResult<C> {
     private description: string;
-    private norm: ClassProbabilities<C>;
     private ans: C;
 
-    get raw() {
-        return this.rawww;
-    }
-
-    get normalized() {
-        return this.norm;
+    get probabilities() {
+        return this.raw;
     }
 
     get answer() {
         return this.ans;
     }
 
-    constructor(private rawww: ClassProbabilities<C>) {
-        this.norm = normalizeMap(rawww);
-        const entries = [...this.normalized.entries()];
+    constructor(private raw: Probabilities<C>) {
+        const entries = [...this.probabilities.entries()];
         const sorted = entries.sort(([, v1], [, v2]) => v2 - v1);
         const ranked = sorted.map(([k, v]) => `- ${(v * 100).toFixed(2)}% \t${k}`);
         this.description = `Most Likely class is '${sorted[0][0]}' by ${(sorted[0][1] * 100).toFixed(2)}%.` +
@@ -67,52 +61,41 @@ export class BayesResult<C> {
     }
 }
 
-export function datasetLoader<T, C>(dataset: Dataset<T, C>, useLaplace = false, categories = []) {
+export function datasetLoader<T, C>(dataset: Dataset<T, C>, useLaplace = false): BayesData<T, C> {
     // we assume the dataset has all the explained variants. I.E.: in the English vs Scottish,
     // we're not missing either Englsh or Scottish.
-    const collection: Probabilities<T, C> = new Map();
-    const classDistribution: ClassProbabilities<C> = new Map();
+    const likelyhood: CondProbabilities<T, C> = new Map();
+    const prior: Probabilities<C> = new Map();
+    const evidence: Probabilities<T> = new Map();
     const normalizer = useLaplace ? laplaceNormalizeMap : normalizeMap;
 
     for (const row of dataset) {
         const explained = row.kind;
-        // count each time we see a class
-        const p = (classDistribution.get(explained) ?? 0);
-        classDistribution.set(explained, p + 1);
-    }
-    for (const category of categories) {
-        const p = (classDistribution.get(category) ?? 0);
-        classDistribution.set(category, p + 1);
-    }
-
-    for (const row of dataset) {
-        const explained = row.kind;
         const explainer = row.choices;
+        // compute prior
+        prior.set(explained, (prior.get(explained) || 0) + 1)
 
         // for each variable (choice), group it by class (phrase -> vectorize)
-        for (const [choice, choiceValue] of explainer) {
-            let variableGroup = collection.get(choice);
-            if (!variableGroup) {
-                variableGroup = new Map([...classDistribution.keys()].map((k) => [k, 0]));
-                collection.set(choice, variableGroup);
+        for (const [choice, isTrue] of explainer) {
+            evidence.set(choice, (evidence.get(choice) || 0) + 1)
+            let givenY = likelyhood.get(explained)
+            if (!givenY) {
+                givenY = new Map();
+                likelyhood.set(explained, givenY)
             }
-            const value = variableGroup.get(explained) ?? 0;
-            if (choiceValue) {
-                variableGroup.set(explained, value + 1);
-            }
+            const count = givenY.get(choice) || 0
+            givenY.set(choice, isTrue ? count + 1 : count)
         }
     }
-    // normalize maps
-    for (const [t, classes] of collection.entries()) {
-        collection.set(t, normalizer(classes, classDistribution.size));
-    }
 
-    const pClassDistribution = normalizeMap(classDistribution);
-
+    const normalizedLikelyhood = new Map()
+    likelyhood.forEach((probabilities, cls) => {
+        normalizedLikelyhood.set(cls, normalizer(probabilities, evidence.size))
+    })
     return {
-        classesDistribution: pClassDistribution,
-        distribution: collection,
-    } as BayesData<T, C>;
+        likelyhood: normalizedLikelyhood,
+        prior: normalizer(prior, prior.size),
+    }
 }
 
 // tslint:disable-next-line: max-classes-per-file
@@ -120,25 +103,23 @@ export class NaiveBayesEngine<T, C> {
     // tslint:disable-next-line: no-empty
     constructor(private data: BayesData<T, C>) { }
 
-    public probabilities(vector: KnownProbabilities<T>) {
-        const choices = this.data.distribution;
-        const classes = this.data.classesDistribution;
-        const rawMap: ClassProbabilities<C> = new Map();
+    public probabilities(vector: FactVector<T>) {
+        const rawMap: Probabilities<C> = new Map();
 
-        // for each class, compute the probability using Bayes
-        classes.forEach((classP, className) => {
-            // this does the product for every probability in the vector
-            const accumulator = (orig: number, entry: [T, ClassProbabilities<C>]) => {
-                const [variable, options] = entry;
-                const matches = vector.get(variable);
-                const p = options.get(className) || 0;
-                // if it does match the entry value, we use p. Otherwise, use not p.
-                const factor = matches ? p : (1 - p);
-                return orig * factor;
-            };
-            const probability = [...choices.entries()].reduce(accumulator, 1) * classP;
-            rawMap.set(className, probability);
-        });
+        const fn = ([cls, p]) => Array.from(this.data.likelyhood.get(cls))
+            .map(([explainer, p]) => {
+                return vector.get(explainer) ? p : 1 - p
+            })
+            .reduce((a, b) => a * b, 1) * p
+
+        const pX = Array.from(this.data.prior)
+            .map(fn)
+            .reduce((a, b) => a + b, 0)
+
+        this.data.prior.forEach((prior, cls) => {
+            const prob = (fn([cls, prior])) / pX
+            rawMap.set(cls, prob)
+        })
 
         return new BayesResult(rawMap);
     }

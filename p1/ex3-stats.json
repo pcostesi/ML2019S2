@@ -1,0 +1,86 @@
+{
+  "nacional": {
+    "true positive": 2879,
+    "true negative": 19831,
+    "false positive": 3269,
+    "false negative": 981,
+    "f1-score": 0.575339728217426,
+    "accuracy": 0.8423590504451038,
+    "precision": 0.4682823682498373,
+    "recall": 0.7458549222797928,
+    "true positive rate": 0.4682823682498373,
+    "false positive rate": 0.1415151515151515
+  },
+  "ciencia y tecnologia": {
+    "true positive": 3097,
+    "true negative": 22698,
+    "false positive": 407,
+    "false negative": 758,
+    "f1-score": 0.841690447071613,
+    "accuracy": 0.9567878338278932,
+    "precision": 0.8838470319634704,
+    "recall": 0.8033722438391699,
+    "true positive rate": 0.8838470319634704,
+    "false positive rate": 0.017615234797662842
+  },
+  "deportes": {
+    "true positive": 3018,
+    "true negative": 22744,
+    "false positive": 361,
+    "false negative": 837,
+    "f1-score": 0.8343931434890794,
+    "accuracy": 0.9555637982195846,
+    "precision": 0.8931636578869488,
+    "recall": 0.7828793774319066,
+    "true positive rate": 0.8931636578869488,
+    "false positive rate": 0.015624323739450335
+  },
+  "entretenimiento": {
+    "true positive": 2534,
+    "true negative": 22701,
+    "false positive": 409,
+    "false negative": 1316,
+    "f1-score": 0.7460621227734433,
+    "accuracy": 0.9360163204747775,
+    "precision": 0.8610261637784573,
+    "recall": 0.6581818181818182,
+    "true positive rate": 0.8610261637784573,
+    "false positive rate": 0.017697966248377325
+  },
+  "economia": {
+    "true positive": 2847,
+    "true negative": 22400,
+    "false positive": 710,
+    "false negative": 1003,
+    "f1-score": 0.7687322802754152,
+    "accuracy": 0.9364614243323442,
+    "precision": 0.8003935901040202,
+    "recall": 0.7394805194805195,
+    "true positive rate": 0.8003935901040202,
+    "false positive rate": 0.03072263089571614
+  },
+  "internacional": {
+    "true positive": 2482,
+    "true negative": 21573,
+    "false positive": 1537,
+    "false negative": 1368,
+    "f1-score": 0.6308298386071928,
+    "accuracy": 0.8922477744807121,
+    "precision": 0.617566558845484,
+    "recall": 0.6446753246753246,
+    "true positive rate": 0.617566558845484,
+    "false positive rate": 0.06650800519255734
+  },
+  "salud": {
+    "true positive": 2978,
+    "true negative": 22688,
+    "false positive": 432,
+    "false negative": 862,
+    "f1-score": 0.8215172413793103,
+    "accuracy": 0.9520029673590504,
+    "precision": 0.8733137829912023,
+    "recall": 0.7755208333333333,
+    "true positive rate": 0.8733137829912023,
+    "false positive rate": 0.018685121107266434
+  }
+}

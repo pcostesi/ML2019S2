@@ -22,12 +22,13 @@ function toDataRow(sentence: string) {
     return words;
 }
 
-export default async function exercise3(phrase: string) {
+export default async function exercise3() {
     const categoryFilter = /destacada/gi;
     const records = read("aa_bayes.csv");
 
     // sort by category usage
     const categoriesSorted = await from(records).pipe(
+        filter((record: any) => !!record.categoria.trim()),
         groupBy((record: any) => record.categoria.toLowerCase(), () => 1),
         mergeMap((group) => zip(of(group.key), group.pipe(reduce((a, b) => a + b, 0)))),
         toArray(),
@@ -44,7 +45,6 @@ export default async function exercise3(phrase: string) {
 
     // filter the data samples so we avoid the most common class
     const clean = await from(records).pipe(
-        filter((record: any) => record.categoria.trim()),
         filter((record: any) => explained.includes(record.categoria.toLowerCase())),
         toArray(),
     ).toPromise();
@@ -97,6 +97,7 @@ export default async function exercise3(phrase: string) {
     }
 
     const experiment = new WordPredictionExperiment(clean, explained);
+    // const exResult = experiment.naive();
     const exResult = experiment.crossValidation(10);
     return exResult;
 }
