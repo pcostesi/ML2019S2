@@ -28,6 +28,7 @@ async function main() {
     consola.log(ex3)
     writeFileSync('ex3-stats.json', JSON.stringify(Object.fromEntries(ex3.stats), replacer, 2))
     writeFileSync('ex3-roc.json', JSON.stringify(Object.fromEntries(ex3.roc.entries()), replacer, 2))
+    writeFileSync('ex3-confusion.json', JSON.stringify(Object.fromEntries(ex3.matrix.table), replacer, 2))
 }
 
 main().then(() => {

@@ -24,7 +24,7 @@ export class RocRow {
 // tslint:disable-next-line: max-classes-per-file
 export class ConfusionMatrix<C> {
 
-    private table = new Map<C, Map<C, number>>();
+    public table = new Map<C, Map<C, number>>();
     private rowTotals = new Map<C, number>();
     private colTotals = new Map<C, number>();
     private allTotals = 0;

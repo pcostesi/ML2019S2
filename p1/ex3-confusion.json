@@ -1,0 +1,65 @@
+{
+  "nacional": {
+    "nacional": 3013,
+    "ciencia y tecnologia": 57,
+    "deportes": 155,
+    "entretenimiento": 94,
+    "economia": 194,
+    "internacional": 270,
+    "salud": 77
+  },
+  "ciencia y tecnologia": {
+    "nacional": 117,
+    "ciencia y tecnologia": 3420,
+    "deportes": 66,
+    "entretenimiento": 58,
+    "economia": 77,
+    "internacional": 68,
+    "salud": 49
+  },
+  "deportes": {
+    "nacional": 227,
+    "ciencia y tecnologia": 98,
+    "deportes": 3224,
+    "entretenimiento": 137,
+    "economia": 29,
+    "internacional": 90,
+    "salud": 50
+  },
+  "entretenimiento": {
+    "nacional": 265,
+    "ciencia y tecnologia": 141,
+    "deportes": 110,
+    "entretenimiento": 3127,
+    "economia": 31,
+    "internacional": 108,
+    "salud": 68
+  },
+  "economia": {
+    "nacional": 154,
+    "ciencia y tecnologia": 191,
+    "deportes": 69,
+    "entretenimiento": 12,
+    "economia": 3199,
+    "internacional": 170,
+    "salud": 55
+  },
+  "internacional": {
+    "nacional": 536,
+    "ciencia y tecnologia": 113,
+    "deportes": 90,
+    "entretenimiento": 102,
+    "economia": 113,
+    "internacional": 2719,
+    "salud": 177
+  },
+  "salud": {
+    "nacional": 224,
+    "ciencia y tecnologia": 105,
+    "deportes": 21,
+    "entretenimiento": 80,
+    "economia": 57,
+    "internacional": 75,
+    "salud": 3278
+  }
+}
