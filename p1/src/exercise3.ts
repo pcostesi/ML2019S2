@@ -7,7 +7,7 @@ import read from "./reader";
 // taken from https://raw.githubusercontent.com/stopwords-iso/stopwords-es/master/stopwords-es.json
 import stopwords from "./stopwords-es.json";
 
-const TOP_WORDS = 100;
+const TOP_WORDS = 250;
 
 function toDataRow(sentence: string) {
     const phrase = sentence.toLowerCase();
