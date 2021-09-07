@@ -12,7 +12,9 @@ async function main() {
     consola.log(`Ejercicio 2: Clasificación entre Ingleses y Escoceses`);
     consola.log(ex2.toString());
 
-    await exercise3("La oposición apura la ley de emergencia alimentaria y habrá una sesión especial");
+    const ex3 = await exercise3("La oposición apura la ley de emergencia alimentaria y habrá una sesión especial");
+    consola.log(`Ejercicio 3: Palabras`)
+    console.table(ex3.matrix.table)
 }
 
 main().then(() => {

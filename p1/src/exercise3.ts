@@ -10,39 +10,42 @@ import stopwords from "./stopwords-es.json";
 const TOP_WORDS = 100;
 
 function toDataRow(sentence: string) {
-    const phrase = sentence.toLowerCase().replace(/[\d\[\]&\/\\#,+()$~%.'":*?<>{}]/g, "");
-    const words = phrase.split(/\b/)
-        .filter(Boolean)
+    const phrase = sentence.toLowerCase();
+    // split on weird symbols
+    const words = phrase.split(/[ \t\n\r\.\,;:\(\)\[\]\{\}]/)
+        .filter(v => !!v)
         .filter((w) => !stopwords.includes(w))
-        .filter((w) => w.length > 3);
+        .filter((w) => !/\P{L}/u.test(w))
+        // we don't want to miss things like VIH
+        // (I mean, we don't want to catch it, but we want the filter to... You get it.)
+        .filter((w) => w.length >= 3);
     return words;
 }
 
 export default async function exercise3(phrase: string) {
-
-    const records = read("aa_bayes.tsv");
+    const categoryFilter = /destacada/gi;
+    const records = read("aa_bayes.csv");
 
     // sort by category usage
     const categoriesSorted = await from(records).pipe(
-        groupBy((record: any) => record.categoria, () => 1),
+        groupBy((record: any) => record.categoria.toLowerCase(), () => 1),
         mergeMap((group) => zip(of(group.key), group.pipe(reduce((a, b) => a + b, 0)))),
         toArray(),
         map((l) => l.sort((a, b) => b[1] - a[1])),
     ).toPromise();
 
-    // let's remove the most common since it's noise in this dataset
-    const mostCommon = categoriesSorted[0][0];
-    consola.info(`Most common word is: ${mostCommon}. Removing...`);
-    const explained = categoriesSorted.slice(1, categoriesSorted.length).map((v) => v[0]);
-    consola.info(`Categories are: \n - ${explained.join("\n - ")}.`);
-
-    // console.log(`Most common: '${categoriesSorted[0][0]}' with ${categoriesSorted[0][1]} items.`);
+    // let's remove some of the most common since those are noise in this dataset
+    const explainedPairs = categoriesSorted.filter(key => !categoryFilter.test(key[0]))
+    const explained = explainedPairs.map((v) => v[0]);
+    const things = explainedPairs.map(p => `${p[0]} with #${p[1]}`).join("\n - ")
+    consola.info(`Categories are: \n - ${things}.`);
 
     consola.info(`Cleaning dataset.`);
 
     // filter the data samples so we avoid the most common class
     const clean = await from(records).pipe(
-        filter((record: any) => record.categoria !== mostCommon),
+        filter((record: any) => record.categoria.trim()),
+        filter((record: any) => explained.includes(record.categoria.toLowerCase())),
         toArray(),
     ).toPromise();
 
@@ -80,14 +83,15 @@ export default async function exercise3(phrase: string) {
 
     class WordPredictionExperiment extends Experiment<string, string, any> {
         public rowLoader(t: any): DatasetRow<string, string> {
+            // result is a mapping of explainer keys vs exists or not in this sentence
             const result = new Map();
-            const words = toDataRow(t.titular);
+            const words = toDataRow(t.titular.toLowerCase());
             explainersKeys.forEach((key) => {
                 result.set(key, words.includes(key));
             });
             return {
                 choices: result,
-                kind: t.categoria,
+                kind: t.categoria.toLowerCase(),
             };
         }
     }

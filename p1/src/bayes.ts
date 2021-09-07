@@ -10,7 +10,7 @@ export interface BayesData<T, C> {
     classesDistribution: ClassProbabilities<C>;
 }
 
-const normalizeMap = <C>(map: Map<C, number>) => {
+export const normalizeMap = <C>(map: Map<C, number>) => {
     const normalized = new Map<C, number>();
     // we know the sum of all the probabilities should be 1, so we normalize the number
     const total = [...map.values()].reduce((a, b) => a + b, 0);
@@ -19,7 +19,7 @@ const normalizeMap = <C>(map: Map<C, number>) => {
     return normalized;
 };
 
-const laplaceNormalizeMap = <C>(map: Map<C, number>, k: number) => {
+export const laplaceNormalizeMap = <C>(map: Map<C, number>, k: number) => {
     const normalized = new Map<C, number>();
     const total = [...map.values()].reduce((a, b) => a + b, 0);
 
@@ -27,6 +27,14 @@ const laplaceNormalizeMap = <C>(map: Map<C, number>, k: number) => {
     return normalized;
 };
 
+
+/**
+ *
+ *
+ * @export
+ * @class BayesResult
+ * @template C
+ */
 export class BayesResult<C> {
     private description: string;
     private norm: ClassProbabilities<C>;
@@ -59,7 +67,7 @@ export class BayesResult<C> {
     }
 }
 
-export function datasetLoader<T, C>(dataset: Dataset<T, C>, useLaplace = false) {
+export function datasetLoader<T, C>(dataset: Dataset<T, C>, useLaplace = false, categories = []) {
     // we assume the dataset has all the explained variants. I.E.: in the English vs Scottish,
     // we're not missing either Englsh or Scottish.
     const collection: Probabilities<T, C> = new Map();
@@ -69,23 +77,29 @@ export function datasetLoader<T, C>(dataset: Dataset<T, C>, useLaplace = false) 
     for (const row of dataset) {
         const explained = row.kind;
         // count each time we see a class
-        const p = (classDistribution.get(explained) || 0);
+        const p = (classDistribution.get(explained) ?? 0);
         classDistribution.set(explained, p + 1);
+    }
+    for (const category of categories) {
+        const p = (classDistribution.get(category) ?? 0);
+        classDistribution.set(category, p + 1);
     }
 
     for (const row of dataset) {
         const explained = row.kind;
         const explainer = row.choices;
 
-        // for each variable (choice), group it by class
+        // for each variable (choice), group it by class (phrase -> vectorize)
         for (const [choice, choiceValue] of explainer) {
             let variableGroup = collection.get(choice);
             if (!variableGroup) {
                 variableGroup = new Map([...classDistribution.keys()].map((k) => [k, 0]));
                 collection.set(choice, variableGroup);
             }
-            const value = variableGroup.get(explained) || 0;
-            variableGroup.set(explained, value + (choiceValue ? 1 : 0));
+            const value = variableGroup.get(explained) ?? 0;
+            if (choiceValue) {
+                variableGroup.set(explained, value + 1);
+            }
         }
     }
     // normalize maps

@@ -5,8 +5,7 @@ export default function read(path: string) {
     const input = fs.readFileSync(path);
     const records = parse(input, {
         columns: true,
-        delimiter: "\t",
-        quote: false,
+        quote: true,
         skip_empty_lines: true,
     });
     return records;

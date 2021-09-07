@@ -14,7 +14,7 @@ class Stats {
 // tslint:disable-next-line: max-classes-per-file
 export class ConfusionMatrix<C> {
 
-    private table = new Map<C, Map<C, number>>();
+    private _table = new Map<C, Map<C, number>>();
     private rowTotals = new Map<C, number>();
     private colTotals = new Map<C, number>();
     private allTotals = 0;
@@ -24,7 +24,7 @@ export class ConfusionMatrix<C> {
             this.rowTotals.set(actual, 0);
             this.colTotals.set(actual, 0);
             const actualRow = new Map<C, number>();
-            this.table.set(actual, actualRow);
+            this._table.set(actual, actualRow);
             for (const guessed of classes) {
                 actualRow.set(guessed, 0);
             }
@@ -33,6 +33,18 @@ export class ConfusionMatrix<C> {
 
     get all() {
         return this.allTotals;
+    }
+
+    get table() {
+        const theTable: any = {}
+        for (const [row, rowData] of Object.entries(this._table)) {
+            theTable[row] = {}
+            for (const [col, data] of Object.entries(rowData)) {
+                theTable[row][col] = data
+            }
+        }
+        console.table(theTable)
+        return theTable
     }
 
     public actualTotal(category: C) {
@@ -44,18 +56,18 @@ export class ConfusionMatrix<C> {
     }
 
     public get(actual: C, guessed: C) {
-        const actualRow = this.table.get(actual);
+        const actualRow = this._table.get(actual);
         if (!actualRow) {
-            throw new Error("class does not exist");
+            throw new Error(`class "${actual}" does not exist`);
         }
         return actualRow.get(guessed) || 0;
 
     }
 
     public increase(actual: C, guessed: C) {
-        const actualRow = this.table.get(actual);
+        const actualRow = this._table.get(actual);
         if (!actualRow) {
-            throw new Error("class does not exist");
+            throw new Error(`class "${actual}" does not exist`);
         }
         const finalVal = this.get(actual, guessed) + 1;
         actualRow.set(guessed, finalVal);
@@ -68,7 +80,7 @@ export class ConfusionMatrix<C> {
     public add(matrix: ConfusionMatrix<C>) {
         const newMatrix = new ConfusionMatrix(this.classes);
         for (const actual of this.classes) {
-            const actualRow = newMatrix.table.get(actual);
+            const actualRow = newMatrix._table.get(actual);
             if (!actualRow) { continue; }
             for (const guessed of this.classes) {
                 const v = this.get(actual, guessed) + matrix.get(actual, guessed);
